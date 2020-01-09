@@ -1,0 +1,32 @@
+
+
+```{r}
+library(readxl)
+
+# The build_frequency files extracted by Jieba dictionary contains more than 16000 features. After using pivot table in excel, we selected the item IDs that contain 50+ comments. Their IDs are listed in form of the row numbers below. 
+tmX <- read_excel("/Users/Zhiyu666/Desktop/build_frequency.xlsx", sheet = "Sheet1")
+tmY <- tmX[c(104,237,9,214,332,34,259,126,12,365,150,356,24,330,380,103,246,100,261,383,271,142,122,115,8,346,343,317,374,89,264,267,151,357,316,182,269,233,299,208,173,53,29,355,102,22,167,175,219,387,155,319,310,354,346,27,302,240,179,141,30,291,78,71,91,68,88,10,87,186,218,260,105,391,124,195,38,326,170,234,129,222,127,364,119,118,293,389,50,378,217,75,101,169,369,348,230,265,157,7,287,136,99,5,117,353,371,344,156,336,212,23,111,375,35,154,304,97,5,185,370,55,96,220,206,284,250,273,203,54,110,3,93,292,312,386),]
+
+
+tbX <- read_excel("/Users/Zhiyu666/Desktop/build_frequency0.xlsx", sheet = "Sheet1")
+tbY <- tbX[c(301,438,131,251,141,34,236,393,24,529,257,448,365,38,386,136,110,134,84,10,219,411,493,505,384,1,377,197,58,452,174,429,175,118,151,156,28,12,64,271,410,478,241,308,440,177,415,409,6,522,171,333,404,317,466,94,189,191,150,318,446,25,247,237,239,210,462,481,86,176,3,500,265,188,202,242,124,267,469,299,364,120,21,464,109,184,340,292,467,370,108,233,22,73,213,309,509,352,357,57,128,264,182,137,11,428,507,399,472,329,187,488,62,215,216,15,102,17,66,284,527,103,200,154,69,388,252,142,303,162,92,275,60,347,421,217,19,207,379,375,149,414,450,31,4,320,93,164,523,476,98,26,506,355,293,165,477,419,20,461,249,470,82,445,238,83,283,155,113,483,59,486,157,431,433,441,97,223,266,95,459,168,499,326,53,51,159,42,127,422,153,5,161,201,296,418,104,228,248,443,129,513,290,274,342,302,516,172,325,391,205,41,278,412,148),]
+
+# This function sort (decreasing) the build frequency files by the percent of nonzero entries for each feature and only keep the top 250 features for tm and tb build frequency files.
+selectFeatures <- function(myData,myData50){
+  lastRow <- nrow(myData)
+  percent <- as.data.frame(myData[c(lastRow),])
+  percentKeep <- sort(percent, decreasing = TRUE)[1:250]
+  colNum <- match(percentKeep,as.data.frame(myData[lastRow,]))
+  myFeatures <- myData50[,colNum]
+  write.table(myFeatures, "/Users/Zhiyu666/Desktop/tb100Features.txt", sep = "\t")
+}
+
+selectFeatures(tbX,tbY)
+
+
+
+
+
+
+
+```

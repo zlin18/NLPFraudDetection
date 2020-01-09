@@ -1,0 +1,44 @@
+```{r}
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(ISLR)
+library(glmnet)
+library(readxl)
+library(plyr)
+library(tibble)
+
+
+
+
+# I. Outer left stack on top of outer right merge tm and tb 100 features into one file. Export the file as completeData.txt and copy the text file into excel. 
+tm100 <- read_excel("/Users/Zhiyu666/Desktop/tm100Features.xlsx", sheet = "Sheet3")
+tb100 <- read_excel("/Users/Zhiyu666/Desktop/tb100Features.xlsx", sheet = "Sheet2")
+left <- join(tm100,tb100,type="left")
+right <- join(tm100,tb100,type="right")
+total <- merge(left,right,all=TRUE)
+write.table(total, "/Users/Zhiyu666/Desktop/completeData.txt", sep = "\t")
+
+
+
+# II. Preliminaries: first attempts to find distribution patterns. 
+myData <- read_excel("/Users/Zhiyu666/Desktop/completeData.xlsx", sheet = "Sheet1")
+
+d1 <- myData %>% ggplot(aes(x=正品, fill=factor(TF))) + geom_density(alpha=.5)
+d2 <- myData %>% ggplot(aes(x=孩子, fill=factor(TF))) + geom_density(alpha=.5)
+d3 <- myData %>% ggplot(aes(x=一般, fill=factor(TF))) + geom_density(alpha=.5)
+grid.arrange(d1,d2,d3,nrow = 3)
+
+# lasso1
+x <- model.matrix(TF ~., data=myData)[,-c(1:2)]
+y <- myData$TF
+lambdas <- c(0,10,100,1000)
+lasso1 <- glmnet(x = x, y = y, alpha = 1, lambda = lambdas)
+coef(lasso1)
+predict(lasso1, type="coefficients", s = c(lasso1$lambda.min, lasso1$lambda.1se, 25))
+
+
+# logistic
+log1 <- glm(TF ~ 正品+孩子+半码+vans+一般, data=myData, family = binomial(link = "logit"))
+summary(log1)
+```

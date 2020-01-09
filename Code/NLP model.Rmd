@@ -1,0 +1,138 @@
+```{r}
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(ISLR)
+library(glmnet)
+library(readxl)
+library(dplyr)
+library(tibble)
+library(rpart)
+library(forcats)
+library(rpart.plot)
+library(randomForest)
+
+
+
+# create completeData and completeData50
+tm100 <- read_excel("/Users/Zhiyu666/Desktop/tm100Features.xlsx", sheet = "Sheet3")
+tb100 <- read_excel("/Users/Zhiyu666/Desktop/tb100Features.xlsx", sheet = "Sheet2")
+left <- join(tm100,tb100,type="left")
+right <- join(tm100,tb100,type="right")
+total <- merge(left,right,all=TRUE)
+write.table(total, "/Users/Zhiyu666/Desktop/completeData.txt", sep = "\t")
+
+
+# read data
+myData <- read_excel("/Users/Zhiyu666/Desktop/completeData.xlsx", sheet = "Sheet3")  #[,c(1:62)]
+
+
+# preliminary 
+d1 <- myData %>% ggplot(aes(x=正品,fill=factor(TF))) + geom_density(alpha=.5)
+d2 <- myData %>% ggplot(aes(x=孩子, fill=factor(TF))) + geom_density(alpha=.5)
+d3 <- myData %>% ggplot(aes(x=一般, fill=factor(TF))) + geom_density(alpha=.5)
+d4 <- myData %>% ggplot(aes(x=半码, fill=factor(TF))) + geom_density(alpha=.5)
+d1
+d2
+d3
+d4
+
+
+ggplot(myData, aes(x=卖家, y=便宜) ) +
+  stat_density_2d(aes(fill = factor(TF)), geom = "polygon", colour="white",alpha=0.35)
+
+ggplot(myData, aes(x=包装, y=快) ) +
+  stat_density_2d(aes(fill = factor(TF)), geom = "polygon", colour="white",alpha=0.35)
+
+ggplot(myData, aes(x=舒服, y=便宜) ) +
+  stat_density_2d(aes(fill = factor(TF)), geom = "polygon", colour="white",alpha=0.35)
+
+ggplot(myData, aes(x=快, y=舒服) ) +
+  stat_density_2d(aes(fill = factor(TF)), geom = "polygon", colour="white",alpha=0.35)
+
+ggplot(myData, aes(x=值得, y=舒服) ) +
+  stat_density_2d(aes(fill = factor(TF)), geom = "polygon", colour="white",alpha=0.35)
+
+
+# simple lasso
+x <- model.matrix(TF ~., data=myData)[,-c(1:2)]
+x <- model.matrix(TF~正品+喜欢+一般, data=myData)[,-c(1:2)]
+y <- myData$TF
+
+#lambdas <- c(0.019,0.05,0.14,0.39) #lasso alpha = 1
+#lambdas <- c(6,14,32,75,175,404) #ridge alpha = 0
+lambdas <- c(0,0.1,1,10,100,1000) 
+lasso1 <- glmnet(x = x, y = y, alpha = 1, lambda = lambdas, family = "binomial")  # not penalizing at all?? 
+coef(lasso1)
+
+predict(lasso1, type="coefficients", s = c(lasso1$lambda.min, lasso1$lambda.1se, 25))
+
+
+# cv lasso 
+cv.lasso.mod <- cv.glmnet(x = x, y = y, alpha = 1) # failing??
+cv.lasso.mod$lambda
+cv.lasso.mod$lambda.min
+cv.lasso.mod$lambda.1se
+
+
+# tree
+tree_0 <- rpart(TF ~ 正品+喜欢+半码, myData, cp=-0.3)  # can't visualize the chinese characters?
+rpart.plot(tree_0,tweak = 1.2)
+
+tree_big <- rpart(TF ~ ., myData,cp=0.3)
+rpart.plot(tree_big,tweak = 1.2)
+plotcp(tree_big)
+tree_c <- ctree(TF ~ ., myData, cp=0.3)
+
+
+
+# bagging/random forest
+myData_trtest <- myData %>% 
+  mutate(grp = sample(c("train", "test"), size=n(),prob=c(.8,.2), replace=TRUE),
+         TF = factor(TF)) 
+
+train <- myData_trtest %>% filter(grp == "train") %>% select(-grp)
+test <- myData_trtest %>% filter(grp == "test") %>% select(-grp)
+
+set.seed(1)
+tree_boot1 <-rpart(TF ~ ., data=train %>% sample_frac(size = 1, replace = TRUE), cp = 0)
+rpart.plot(tree_boot1, fallen.leaves = FALSE, cex=1.1)
+printcp(tree_boot1)
+plotcp(tree_boot1)
+
+set.seed(2)
+tree_boot2 <-rpart(TF ~ ., data=train %>% sample_frac(size = 1, replace = TRUE), cp = 0)
+rpart.plot(tree_boot2, fallen.leaves = FALSE, cex=1.1)
+
+set.seed(4)
+tree_boot3 <-rpart(TF ~ ., data=train %>% sample_frac(size = 1, replace = TRUE), cp = 0)
+rpart.plot(tree_boot3, fallen.leaves = FALSE, cex=1.1)
+
+test %>% select(TF) %>% 
+  mutate(p1=predict(tree_boot1, test, type = "class"),
+         p2=predict(tree_boot2, test, type = "class"),
+         p3=predict(tree_boot3, test, type = "class")) %>% 
+  slice(1:100)
+
+bag1 <- randomForest(TF ~ ., data=test, mtry=351, importance = TRUE)
+bag1
+plot(bag1)
+
+
+train %>% 
+  ggplot(aes(x=万斯, y=vans)) +
+  geom_point(aes(color=TF))
+
+
+
+# logistic
+log1 <- glm(TF ~ 正品+半码+vans+一般, data=myData, family = binomial(link = "logit"))  # none of these are significant predictors?
+summary(log1)
+
+
+
+# find feature correlation
+# 60*60 variables matrix color-code
+
+
+```
